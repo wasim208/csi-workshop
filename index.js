@@ -2,6 +2,9 @@ const express = require("express");
 const path = require("path");
 const todoList = require("./todo");
 const { v4 } = require("uuid");
+require("./database");
+
+const Todoitem = require("./models/todoItemSchema");
 
 const app = express();
 
@@ -15,45 +18,32 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/todo", (req, res) => {
-  res.json(todoList);
+  Todoitem.find({}, (err, docs) => {
+    if (err) throw err;
+    res.json(docs);
+  });
 });
 
 app.post("/api/todo", (req, res) => {
-  const newTask = {
-    id: v4(),
-    task: req.body.task,
-    completed: false,
-  };
-  todoList.push(newTask);
-  res.json(todoList);
+  const newTodoItem = new Todoitem({ task: req.body.task, completed: false });
+  newTodoItem.save();
+  res.send({ message: "item added" });
 });
 
 app.put("/api/todo/:id", (req, res) => {
   const id = req.params.id;
-  if (todoList.some((todo) => todo.id === id)) {
-    todoList.forEach((todo) => {
-      if (todo.id === id) {
-        todo.completed = true;
-      }
-    });
-    res.json(todoList);
-  } else {
-    res.status(400).json({ msg: `item with id ${id} not found` });
-  }
+  Todoitem.findByIdAndUpdate(id, { $set: { completed: true } }, (err, data) => {
+    if (err) res.status(500).send(err);
+    else res.send({ message: "updated" });
+  });
 });
 
 app.delete("/api/todo/:id", (req, res) => {
   const id = req.params.id;
-  if (todoList.some((todo) => todo.id === id)) {
-    todoList.forEach((todo, i) => {
-      if (todo.id === id) {
-        todoList.splice(i, 1);
-      }
-    });
-    res.json(todoList);
-  } else {
-    res.status(400).json({ msg: `item with id ${id} not found` });
-  }
+  Todoitem.findByIdAndRemove(id, (err, data) => {
+    if (err) res.status(500).send(err);
+    else res.send({ message: "item deleted" });
+  });
 });
 
 app.listen(PORT, () => console.log(`server running on ${PORT}`));
